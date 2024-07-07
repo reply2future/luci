@@ -333,12 +333,12 @@ run_v2ray() {
 	[ -z "$type" ] && {
 		local type=$(echo $(config_n_get $node type) | tr 'A-Z' 'a-z')
 		if [ "$type" != "v2ray" ] && [ "$type" != "xray" ]; then
-			local bin=$(first_type $(config_t_get global_app v2ray_file) v2ray)
+			local bin=$(first_type $(config_t_get global_app xray_file) xray)
 			if [ -n "$bin" ]; then
-				type="v2ray"
+				type="xray"
 			else
-				bin=$(first_type $(config_t_get global_app xray_file) xray)
-				[ -n "$bin" ] && type="xray"
+				bin=$(first_type $(config_t_get global_app v2ray_file) v2ray)
+				[ -n "$bin" ] && type="v2ray"
 			fi
 		fi
 	}
@@ -486,6 +486,8 @@ run_socks() {
 			return 1
 		}
 		tmp="${server_host}:${port}"
+	elif [ "$node" = "_direct" ]; then
+		echolog " - Socks节点是：[$node]"
 	else
 		error_msg="某种原因，此 Socks 服务的相关配置已失联，启动中止！"
 	fi
@@ -526,7 +528,8 @@ run_socks() {
 		ln_run "$bin" $type $log_file run -c "$config_file"
 	;;
 	v2ray|\
-	xray)
+	xray|\
+	"")
 		[ "$http_port" != "0" ] && {
 			http_flag=1
 			config_file=$(echo $config_file | sed "s/SOCKS/HTTP_SOCKS/g")
