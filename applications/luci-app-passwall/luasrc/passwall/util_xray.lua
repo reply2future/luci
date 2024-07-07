@@ -659,7 +659,9 @@ function gen_config(var)
 			return balancer, rule
 		end
 
-		if node.protocol == "_shunt" then
+		if node == nil then
+			-- do nothing
+		elseif node.protocol == "_shunt" then
 			local rules = {}
 			local balancers = {}
 

@@ -114,6 +114,8 @@ for k, v in pairs(nodes_table) do
 	end
 end
 
+socks_node:value("_direct", translate("Direct Connection"))
+
 m:append(Template(appname .. "/socks_auto_switch/footer"))
 
 return m
