@@ -527,6 +527,7 @@ run_socks() {
 		lua $UTIL_XRAY gen_proto_config -local_socks_port $socks_port ${_extra_param} -server_proto socks -server_address ${_socks_address} -server_port ${_socks_port} -server_username ${_socks_username} -server_password ${_socks_password} > $config_file
 		ln_run "$bin" $type $log_file run -c "$config_file"
 	;;
+	# if using `socks config` to set socks node, the type would be ""
 	v2ray|\
 	xray|\
 	"")

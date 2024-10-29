@@ -538,7 +538,7 @@ function gen_config(var)
 				port = tonumber(local_socks_port),
 				protocol = "socks",
 				settings = {auth = "noauth", udp = true},
-				sniffing = {enabled = true, destOverride = {"http", "tls", "quic"}}
+				sniffing = {enabled = sniffing and true or false, destOverride = {"http", "tls", "quic"}}
 			}
 			if local_socks_username and local_socks_password and local_socks_username ~= "" and local_socks_password ~= "" then
 				inbound.settings.auth = "password"
@@ -1144,6 +1144,16 @@ function gen_config(var)
 	end
 
 	if inbounds or outbounds then
+
+		-- if routing.rules is empty, set all inbounds.sniffing to disable
+		if routing and #routing.rules == 0 then
+			for _, inbound in ipairs(inbounds) do
+				if inbound.sniffing then
+					inbound.sniffing.enabled = false
+				end
+			end
+		end
+
 		local config = {
 			log = {
 				-- error = string.format("/tmp/etc/%s/%s.log", appname, node[".name"]),
