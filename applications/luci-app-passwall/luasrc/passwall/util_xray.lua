@@ -538,7 +538,7 @@ function gen_config(var)
 				port = tonumber(local_socks_port),
 				protocol = "socks",
 				settings = {auth = "noauth", udp = true},
-				sniffing = {enabled = sniffing and true or false, destOverride = {"http", "tls", "quic"}}
+				sniffing = {enabled = sniffing and true or false, destOverride = {"http", "tls", "quic"}, routeOnly = route_only and true or nil, domainsExcluded = (sniffing and not route_only) and get_domain_excluded() or nil}
 			}
 			if local_socks_username and local_socks_password and local_socks_username ~= "" and local_socks_password ~= "" then
 				inbound.settings.auth = "password"
