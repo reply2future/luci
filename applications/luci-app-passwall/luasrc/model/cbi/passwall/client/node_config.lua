@@ -168,10 +168,12 @@ local balancingStrategy = s:option(ListValue, "balancingStrategy", translate("Ba
 balancingStrategy:depends("protocol", "_balancing")
 balancingStrategy:value("random")
 balancingStrategy:value("leastPing")
+balancingStrategy:value("leastLoad")
 balancingStrategy.default = "random"
 -- 探测地址
 local useCustomProbeUrl = s:option(Flag, "useCustomProbeUrl", translate("Use Custome Probe URL"), translate("By default the built-in probe URL will be used, enable this option to use a custom probe URL."))
 useCustomProbeUrl:depends("balancingStrategy", "leastPing")
+useCustomProbeUrl:depends("balancingStrategy", "leastLoad")
 local probeUrl = s:option(Value, "probeUrl", translate("Probe URL"))
 probeUrl:depends("useCustomProbeUrl", true)
 probeUrl.default = "https://www.google.com/generate_204"
@@ -179,6 +181,7 @@ probeUrl.description = translate("The URL used to detect the connection status."
 -- 探测间隔
 local probeInterval = s:option(Value, "probeInterval", translate("Probe Interval"))
 probeInterval:depends("balancingStrategy", "leastPing")
+probeInterval:depends("balancingStrategy", "leastLoad")
 probeInterval.default = "1m"
 probeInterval.description = translate("The interval between initiating probes. Every time this time elapses, a server status check is performed on a server. The time format is numbers + units, such as '10s', '2h45m', and the supported time units are <code>ns</code>, <code>us</code>, <code>ms</code>, <code>s</code>, <code>m</code>, <code>h</code>, which correspond to nanoseconds, microseconds, milliseconds, seconds, minutes, and hours, respectively.")
 
