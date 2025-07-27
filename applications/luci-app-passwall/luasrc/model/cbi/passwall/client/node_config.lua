@@ -1132,6 +1132,11 @@ custom_outbound_settings.cfgvalue = function(self, section)
     end
     return v
 end
+custom_outbound_settings:depends({ type = "Xray", protocol = "vmess" })
+custom_outbound_settings:depends({ type = "Xray", protocol = "vless" })
+custom_outbound_settings:depends({ type = "Xray", protocol = "socks" })
+custom_outbound_settings:depends({ type = "Xray", protocol = "shadowsocks" })
+custom_outbound_settings:depends({ type = "Xray", protocol = "trojan" })
 
 custom_outbound_settings.write = function(self, section, value)
     if value and #value > 0 then
@@ -1161,6 +1166,12 @@ custom_outbound_mux.write = function(self, section, value)
     Value.write(self, section, value)
 end
 
+custom_outbound_mux:depends({ type = "Xray", protocol = "vmess" })
+custom_outbound_mux:depends({ type = "Xray", protocol = "vless" })
+custom_outbound_mux:depends({ type = "Xray", protocol = "socks" })
+custom_outbound_mux:depends({ type = "Xray", protocol = "shadowsocks" })
+custom_outbound_mux:depends({ type = "Xray", protocol = "trojan" })
+
 custom_outbound_stream_settings = s:option(Value, "custom_outbound_stream_settings", translate("Custom Outbound Stream Settings(JSON)"))
 custom_outbound_stream_settings.default = ""
 custom_outbound_stream_settings.rmempty = true
@@ -1181,6 +1192,12 @@ custom_outbound_stream_settings.write = function(self, section, value)
     end
     Value.write(self, section, value)
 end
+
+custom_outbound_stream_settings:depends({ type = "Xray", protocol = "vmess" })
+custom_outbound_stream_settings:depends({ type = "Xray", protocol = "vless" })
+custom_outbound_stream_settings:depends({ type = "Xray", protocol = "socks" })
+custom_outbound_stream_settings:depends({ type = "Xray", protocol = "shadowsocks" })
+custom_outbound_stream_settings:depends({ type = "Xray", protocol = "trojan" })
 
 protocol.validate = function(self, value)
 	if value == "_shunt" or value == "_balancing" then
