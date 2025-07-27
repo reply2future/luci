@@ -2,6 +2,10 @@ local api = require "luci.passwall.api"
 local appname = api.appname
 local uci = api.uci
 
+local nixio = require "nixio"
+local b64decode = nixio.bin.b64decode
+local b64encode = nixio.bin.b64encode
+
 if not arg[1] or not uci:get(appname, arg[1]) then
 	luci.http.redirect(api.url("node_list"))
 end
@@ -600,6 +604,7 @@ tlsflow:depends({ type = "Xray", protocol = "vless", tls = true, transport = "tc
 reality = s:option(Flag, "reality", translate("REALITY"), translate("Only recommend to use with VLESS-TCP-XTLS-Vision."))
 reality.default = 0
 reality:depends({ type = "Xray", tls = true, transport = "tcp" })
+reality:depends({ type = "Xray", tls = true, transport = "xhttp" })
 reality:depends({ type = "Xray", tls = true, transport = "h2" })
 reality:depends({ type = "Xray", tls = true, transport = "grpc" })
 
@@ -738,6 +743,7 @@ transport:value("h2", "HTTP/2")
 transport:value("ds", "DomainSocket")
 transport:value("quic", "QUIC")
 transport:value("grpc", "gRPC")
+transport:value("xhttp", "XHTTP")
 transport:depends({ type = "V2ray", protocol = "vmess" })
 transport:depends({ type = "V2ray", protocol = "vless" })
 transport:depends({ type = "V2ray", protocol = "socks" })
@@ -1111,6 +1117,70 @@ tuic_zero_rtt_handshake.rmempty = true
 tuic_tls_alpn = s:option(DynamicList, "tuic_tls_alpn", translate("TLS ALPN"))
 tuic_tls_alpn:depends({ type = "TUIC"})
 tuic_tls_alpn.rmempty = true
+
+-- 自定義的配置，以適配最新版本
+custom_outbound_settings = s:option(Value, "custom_outbound_settings", translate("Custom Outbound Settings(JSON)"))
+custom_outbound_settings.default = ""
+custom_outbound_settings.rmempty = true
+custom_outbound_settings.cfgvalue = function(self, section)
+    local v = Value.cfgvalue(self, section)
+    if v and #v > 0 then
+        local ok, decoded = pcall(b64decode, v)
+        if ok and decoded then
+            return decoded
+        end
+    end
+    return v
+end
+
+custom_outbound_settings.write = function(self, section, value)
+    if value and #value > 0 then
+        value = b64encode(value)
+    end
+    Value.write(self, section, value)
+end
+
+custom_outbound_mux = s:option(Value, "custom_outbound_mux", translate("Custom Outbound MUX(JSON)"))
+custom_outbound_mux.default = ""
+custom_outbound_mux.rmempty = true
+custom_outbound_mux.cfgvalue = function(self, section)
+    local v = Value.cfgvalue(self, section)
+    if v and #v > 0 then
+        local ok, decoded = pcall(b64decode, v)
+        if ok and decoded then
+            return decoded
+        end
+    end
+    return v
+end
+
+custom_outbound_mux.write = function(self, section, value)
+    if value and #value > 0 then
+        value = b64encode(value)
+    end
+    Value.write(self, section, value)
+end
+
+custom_outbound_stream_settings = s:option(Value, "custom_outbound_stream_settings", translate("Custom Outbound Stream Settings(JSON)"))
+custom_outbound_stream_settings.default = ""
+custom_outbound_stream_settings.rmempty = true
+custom_outbound_stream_settings.cfgvalue = function(self, section)
+    local v = Value.cfgvalue(self, section)
+    if v and #v > 0 then
+        local ok, decoded = pcall(b64decode, v)
+        if ok and decoded then
+            return decoded
+        end
+    end
+    return v
+end
+
+custom_outbound_stream_settings.write = function(self, section, value)
+    if value and #value > 0 then
+        value = b64encode(value)
+    end
+    Value.write(self, section, value)
+end
 
 protocol.validate = function(self, value)
 	if value == "_shunt" or value == "_balancing" then

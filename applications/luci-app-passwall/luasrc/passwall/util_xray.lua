@@ -6,6 +6,8 @@ local jsonc = api.jsonc
 local appname = api.appname
 local fs = api.fs
 
+local b64decode = require("nixio").bin.b64decode
+
 local new_port
 
 local function get_new_port()
@@ -32,229 +34,266 @@ local function get_domain_excluded()
 	return hosts
 end
 
-function gen_outbound(flag, node, tag, proxy_table)
-	local result = nil
-	if node and node ~= "nil" then
-		local node_id = node[".name"]
-		if tag == nil then
-			tag = node_id
-		end
+local function deep_merge(t1, t2)
+    for k, v in pairs(t2) do
+        if type(v) == "table" and type(t1[k]) == "table" then
+            deep_merge(t1[k], v)
+        else
+            t1[k] = v
+        end
+    end
+    return t1
+end
 
-		local proxy = 0
-		local proxy_tag = "nil"
-		if proxy_table ~= nil and type(proxy_table) == "table" then
-			proxy = proxy_table.proxy or 0
-			proxy_tag = proxy_table.tag or "nil"
-		end
+local function base64_deep_merge (origin, base64str)
 
-		if node.type == "V2ray" or node.type == "Xray" then
-			if node.type == "Xray" and node.tlsflow == "xtls-rprx-vision" then
-			else
-				proxy = 0
-				if proxy_tag ~= "nil" then
-					node.proxySettings = {
-						tag = proxy_tag,
-						transportLayer = true
-					}
-				end
-			end
-		end
+	-- sys.call('logger "' .. 'base64_deep_merge start:' .. (base64str or "") .. '"')
+	if base64str and type(base64str) == "string" and #base64str > 0 then
+		local ok, decoded = pcall(b64decode, base64str)
 
-		if node.type ~= "V2ray" and node.type ~= "Xray" then
-			if node.type == "Socks" then
-				node.protocol = "socks"
-				node.transport = "tcp"
-			else
-				local relay_port = node.port
-				new_port = get_new_port()
-				local config_file = string.format("%s_%s_%s.json", flag, tag, new_port)
-				if tag and node_id and tag ~= node_id then
-					config_file = string.format("%s_%s_%s_%s.json", flag, tag, node_id, new_port)
-				end
-				sys.call(string.format('/usr/share/%s/app.sh run_socks "%s"> /dev/null',
-					appname,
-					string.format("flag=%s node=%s bind=%s socks_port=%s config_file=%s relay_port=%s",
-						new_port, --flag
-						node_id, --node
-						"127.0.0.1", --bind
-						new_port, --socks port
-						config_file, --config file
-						(proxy == 1 and relay_port) and tostring(relay_port) or "" --relay port
-					)
-				))
-				node = {}
-				node.protocol = "socks"
-				node.transport = "tcp"
-				node.address = "127.0.0.1"
-				node.port = new_port
-			end
-			node.stream_security = "none"
-		end
-
-		if node.type == "V2ray" or node.type == "Xray" then
-			if node.tls and node.tls == "1" then
-				node.stream_security = "tls"
-				if node.type == "Xray" and node.reality and node.reality == "1" then
-					node.stream_security = "reality"
-				end
-			end
-		end
-
-		if node.protocol == "wireguard" and node.wireguard_reserved then
-			local bytes = {}
-			if not node.wireguard_reserved:match("[^%d,]+") then
-				node.wireguard_reserved:gsub("%d+", function(b)
-					bytes[#bytes + 1] = tonumber(b)
-				end)
-			else
-				local result = api.bin.b64decode(node.wireguard_reserved)
-				for i = 1, #result do
-					bytes[i] = result:byte(i)
-				end
-			end
-			node.wireguard_reserved = #bytes > 0 and bytes or nil
-		end
-
-		result = {
-			_flag_tag = node_id,
-			_flag_proxy = proxy,
-			_flag_proxy_tag = proxy_tag,
-			tag = tag,
-			proxySettings = node.proxySettings or nil,
-			protocol = node.protocol,
-			mux = {
-				enabled = (node.mux == "1" or node.xmux == "1") and true or false,
-				concurrency = (node.mux == "1" and ((node.mux_concurrency) and tonumber(node.mux_concurrency) or 8)) or ((node.xmux == "1") and -1) or nil,
-				xudpConcurrency = (node.xmux == "1" and ((node.xudp_concurrency) and tonumber(node.xudp_concurrency) or 8)) or nil
-			} or nil,
-			-- 底层传输配置
-			streamSettings = (node.streamSettings or node.protocol == "vmess" or node.protocol == "vless" or node.protocol == "socks" or node.protocol == "shadowsocks" or node.protocol == "trojan") and {
-				sockopt = {
-					mark = 255
-				},
-				network = node.transport,
-				security = node.stream_security,
-				tlsSettings = (node.stream_security == "tls") and {
-					serverName = node.tls_serverName,
-					allowInsecure = (node.tls_allowInsecure == "1") and true or false,
-					fingerprint = (node.type == "Xray" and node.fingerprint and node.fingerprint ~= "") and node.fingerprint or nil
-				} or nil,
-				realitySettings = (node.stream_security == "reality") and {
-					serverName = node.tls_serverName,
-					publicKey = node.reality_publicKey,
-					shortId = node.reality_shortId or "",
-					spiderX = node.reality_spiderX or "/",
-					fingerprint = (node.type == "Xray" and node.fingerprint and node.fingerprint ~= "") and node.fingerprint or "chrome"
-				} or nil,
-				tcpSettings = (node.transport == "tcp" and node.protocol ~= "socks") and {
-					header = {
-						type = node.tcp_guise or "none",
-						request = (node.tcp_guise == "http") and {
-							path = node.tcp_guise_http_path or {"/"},
-							headers = {
-								Host = node.tcp_guise_http_host or {}
-							}
-						} or nil
-					}
-				} or nil,
-				kcpSettings = (node.transport == "mkcp") and {
-					mtu = tonumber(node.mkcp_mtu),
-					tti = tonumber(node.mkcp_tti),
-					uplinkCapacity = tonumber(node.mkcp_uplinkCapacity),
-					downlinkCapacity = tonumber(node.mkcp_downlinkCapacity),
-					congestion = (node.mkcp_congestion == "1") and true or false,
-					readBufferSize = tonumber(node.mkcp_readBufferSize),
-					writeBufferSize = tonumber(node.mkcp_writeBufferSize),
-					seed = (node.mkcp_seed and node.mkcp_seed ~= "") and node.mkcp_seed or nil,
-					header = {type = node.mkcp_guise}
-				} or nil,
-				wsSettings = (node.transport == "ws") and {
-					path = node.ws_path or "/",
-					headers = (node.ws_host ~= nil) and
-						{Host = node.ws_host} or nil,
-					maxEarlyData = tonumber(node.ws_maxEarlyData) or nil,
-					earlyDataHeaderName = (node.ws_earlyDataHeaderName) and node.ws_earlyDataHeaderName or nil
-				} or nil,
-				httpSettings = (node.transport == "h2") and {
-					path = node.h2_path or "/",
-					host = node.h2_host,
-					read_idle_timeout = tonumber(node.h2_read_idle_timeout) or nil,
-					health_check_timeout = tonumber(node.h2_health_check_timeout) or nil
-				} or nil,
-				dsSettings = (node.transport == "ds") and
-					{path = node.ds_path} or nil,
-				quicSettings = (node.transport == "quic") and {
-					security = node.quic_security,
-					key = node.quic_key,
-					header = {type = node.quic_guise}
-				} or nil,
-				grpcSettings = (node.transport == "grpc") and {
-					serviceName = node.grpc_serviceName,
-					multiMode = (node.grpc_mode == "multi") and true or nil,
-					idle_timeout = tonumber(node.grpc_idle_timeout) or nil,
-					health_check_timeout = tonumber(node.grpc_health_check_timeout) or nil,
-					permit_without_stream = (node.grpc_permit_without_stream == "1") and true or nil,
-					initial_windows_size = tonumber(node.grpc_initial_windows_size) or nil
-				} or nil
-			} or nil,
-			settings = {
-				vnext = (node.protocol == "vmess" or node.protocol == "vless") and {
-					{
-						address = node.address,
-						port = tonumber(node.port),
-						users = {
-							{
-								id = node.uuid,
-								level = 0,
-								security = (node.protocol == "vmess") and node.security or nil,
-								encryption = node.encryption or "none",
-								flow = (node.protocol == "vless" and node.tls == '1' and node.tlsflow) and node.tlsflow or nil
-							}
-						}
-					}
-				} or nil,
-				servers = (node.protocol == "socks" or node.protocol == "http" or node.protocol == "shadowsocks" or node.protocol == "trojan") and {
-					{
-						address = node.address,
-						port = tonumber(node.port),
-						method = node.method or nil,
-						ivCheck = (node.protocol == "shadowsocks") and node.iv_check == "1" or nil,
-						uot = (node.protocol == "shadowsocks") and node.uot == "1" or nil,
-						password = node.password or "",
-						users = (node.username and node.password) and {
-							{
-								user = node.username,
-								pass = node.password
-							}
-						} or nil
-					}
-				} or nil,
-				address = (node.protocol == "wireguard" and node.wireguard_local_address) and node.wireguard_local_address or nil,
-				secretKey = (node.protocol == "wireguard") and node.wireguard_secret_key or nil,
-				peers = (node.protocol == "wireguard") and {
-					{
-						publicKey = node.wireguard_public_key,
-						endpoint = node.address .. ":" .. node.port,
-						preSharedKey = node.wireguard_preSharedKey,
-						keepAlive = node.wireguard_keepAlive and tonumber(node.wireguard_keepAlive) or nil
-					}
-				} or nil,
-				mtu = (node.protocol == "wireguard" and node.wireguard_mtu) and tonumber(node.wireguard_mtu) or nil,
-				reserved = (node.protocol == "wireguard" and node.wireguard_reserved) and node.wireguard_reserved or nil
-			}
-		}
-		local alpn = {}
-		if node.alpn and node.alpn ~= "default" then
-			string.gsub(node.alpn, '[^' .. "," .. ']+', function(w)
-				table.insert(alpn, w)
-			end)
-		end
-		if alpn and #alpn > 0 then
-			if result.streamSettings.tlsSettings then
-				result.streamSettings.tlsSettings.alpn = alpn
+		-- sys.call('logger "' .. 'base64_deep_merge decode result:' .. ok .. '"')
+		if ok and decoded then
+			local custom_settings = jsonc.parse(decoded)
+			-- sys.call('logger "' .. 'base64_deep_merge:' .. jsonc.stringify(custom_settings):gsub('"', '\\"') .. '"')
+			if custom_settings and type(custom_settings) == "table" then
+				return deep_merge(origin or {}, custom_settings)
 			end
 		end
 	end
+
+	return origin
+end
+
+function gen_outbound(flag, node, tag, proxy_table)
+	local result = nil
+	if not node or node == "nil" then
+		return result
+	end
+	local node_id = node[".name"]
+	if tag == nil then
+		tag = node_id
+	end
+
+	local proxy = 0
+	local proxy_tag = "nil"
+	if proxy_table ~= nil and type(proxy_table) == "table" then
+		proxy = proxy_table.proxy or 0
+		proxy_tag = proxy_table.tag or "nil"
+	end
+
+	if node.type == "V2ray" or node.type == "Xray" then
+		if node.type == "Xray" and node.tlsflow == "xtls-rprx-vision" then
+		else
+			proxy = 0
+			if proxy_tag ~= "nil" then
+				node.proxySettings = {
+					tag = proxy_tag,
+					transportLayer = true
+				}
+			end
+		end
+
+		if node.tls and node.tls == "1" then
+			node.stream_security = "tls"
+			if node.type == "Xray" and node.reality and node.reality == "1" then
+				node.stream_security = "reality"
+			end
+		end
+	end
+
+	if node.type ~= "V2ray" and node.type ~= "Xray" then
+		if node.type == "Socks" then
+			node.protocol = "socks"
+			node.transport = "tcp"
+		else
+			local relay_port = node.port
+			new_port = get_new_port()
+			local config_file = string.format("%s_%s_%s.json", flag, tag, new_port)
+			if tag and node_id and tag ~= node_id then
+				config_file = string.format("%s_%s_%s_%s.json", flag, tag, node_id, new_port)
+			end
+			sys.call(string.format('/usr/share/%s/app.sh run_socks "%s"> /dev/null',
+				appname,
+				string.format("flag=%s node=%s bind=%s socks_port=%s config_file=%s relay_port=%s",
+					new_port, --flag
+					node_id, --node
+					"127.0.0.1", --bind
+					new_port, --socks port
+					config_file, --config file
+					(proxy == 1 and relay_port) and tostring(relay_port) or "" --relay port
+				)
+			))
+			node = {}
+			node.protocol = "socks"
+			node.transport = "tcp"
+			node.address = "127.0.0.1"
+			node.port = new_port
+		end
+		node.stream_security = "none"
+	end
+
+	if node.protocol == "wireguard" and node.wireguard_reserved then
+		local bytes = {}
+		if not node.wireguard_reserved:match("[^%d,]+") then
+			node.wireguard_reserved:gsub("%d+", function(b)
+				bytes[#bytes + 1] = tonumber(b)
+			end)
+		else
+			local result = api.bin.b64decode(node.wireguard_reserved)
+			for i = 1, #result do
+				bytes[i] = result:byte(i)
+			end
+		end
+		node.wireguard_reserved = #bytes > 0 and bytes or nil
+	end
+
+	result = {
+		_flag_tag = node_id,
+		_flag_proxy = proxy,
+		_flag_proxy_tag = proxy_tag,
+		tag = tag,
+		proxySettings = node.proxySettings or nil,
+		protocol = node.protocol,
+		mux = {
+			enabled = (node.mux == "1" or node.xmux == "1") and true or false,
+			concurrency = (node.mux == "1" and ((node.mux_concurrency) and tonumber(node.mux_concurrency) or 8)) or ((node.xmux == "1") and -1) or nil,
+			xudpConcurrency = (node.xmux == "1" and ((node.xudp_concurrency) and tonumber(node.xudp_concurrency) or 8)) or nil
+		} or nil,
+		-- 底层传输配置
+		streamSettings = (node.streamSettings or node.protocol == "vmess" or node.protocol == "vless" or node.protocol == "socks" or node.protocol == "shadowsocks" or node.protocol == "trojan") and {
+			sockopt = {
+				mark = 255
+			},
+			network = node.transport,
+			security = node.stream_security,
+			tlsSettings = (node.stream_security == "tls") and {
+				serverName = node.tls_serverName,
+				allowInsecure = (node.tls_allowInsecure == "1") and true or false,
+				fingerprint = (node.type == "Xray" and node.fingerprint and node.fingerprint ~= "") and node.fingerprint or nil
+			} or nil,
+			realitySettings = (node.stream_security == "reality") and {
+				serverName = node.tls_serverName,
+				publicKey = node.reality_publicKey,
+				shortId = node.reality_shortId or "",
+				spiderX = node.reality_spiderX or "/",
+				fingerprint = (node.type == "Xray" and node.fingerprint and node.fingerprint ~= "") and node.fingerprint or "chrome"
+			} or nil,
+			tcpSettings = (node.transport == "tcp" and node.protocol ~= "socks") and {
+				header = {
+					type = node.tcp_guise or "none",
+					request = (node.tcp_guise == "http") and {
+						path = node.tcp_guise_http_path or {"/"},
+						headers = {
+							Host = node.tcp_guise_http_host or {}
+						}
+					} or nil
+				}
+			} or nil,
+			kcpSettings = (node.transport == "mkcp") and {
+				mtu = tonumber(node.mkcp_mtu),
+				tti = tonumber(node.mkcp_tti),
+				uplinkCapacity = tonumber(node.mkcp_uplinkCapacity),
+				downlinkCapacity = tonumber(node.mkcp_downlinkCapacity),
+				congestion = (node.mkcp_congestion == "1") and true or false,
+				readBufferSize = tonumber(node.mkcp_readBufferSize),
+				writeBufferSize = tonumber(node.mkcp_writeBufferSize),
+				seed = (node.mkcp_seed and node.mkcp_seed ~= "") and node.mkcp_seed or nil,
+				header = {type = node.mkcp_guise}
+			} or nil,
+			wsSettings = (node.transport == "ws") and {
+				path = node.ws_path or "/",
+				headers = (node.ws_host ~= nil) and
+					{Host = node.ws_host} or nil,
+				maxEarlyData = tonumber(node.ws_maxEarlyData) or nil,
+				earlyDataHeaderName = (node.ws_earlyDataHeaderName) and node.ws_earlyDataHeaderName or nil
+			} or nil,
+			httpSettings = (node.transport == "h2") and {
+				path = node.h2_path or "/",
+				host = node.h2_host,
+				read_idle_timeout = tonumber(node.h2_read_idle_timeout) or nil,
+				health_check_timeout = tonumber(node.h2_health_check_timeout) or nil
+			} or nil,
+			dsSettings = (node.transport == "ds") and
+				{path = node.ds_path} or nil,
+			quicSettings = (node.transport == "quic") and {
+				security = node.quic_security,
+				key = node.quic_key,
+				header = {type = node.quic_guise}
+			} or nil,
+			grpcSettings = (node.transport == "grpc") and {
+				serviceName = node.grpc_serviceName,
+				multiMode = (node.grpc_mode == "multi") and true or nil,
+				idle_timeout = tonumber(node.grpc_idle_timeout) or nil,
+				health_check_timeout = tonumber(node.grpc_health_check_timeout) or nil,
+				permit_without_stream = (node.grpc_permit_without_stream == "1") and true or nil,
+				initial_windows_size = tonumber(node.grpc_initial_windows_size) or nil
+			} or nil
+		} or nil,
+		settings = {
+			vnext = (node.protocol == "vmess" or node.protocol == "vless") and {
+				{
+					address = node.address,
+					port = tonumber(node.port),
+					users = {
+						{
+							id = node.uuid,
+							level = 0,
+							security = (node.protocol == "vmess") and node.security or nil,
+							encryption = node.encryption or "none",
+							flow = (node.protocol == "vless" and node.tls == '1' and node.tlsflow) and node.tlsflow or nil
+						}
+					}
+				}
+			} or nil,
+			servers = (node.protocol == "socks" or node.protocol == "http" or node.protocol == "shadowsocks" or node.protocol == "trojan") and {
+				{
+					address = node.address,
+					port = tonumber(node.port),
+					method = node.method or nil,
+					ivCheck = (node.protocol == "shadowsocks") and node.iv_check == "1" or nil,
+					uot = (node.protocol == "shadowsocks") and node.uot == "1" or nil,
+					password = node.password or "",
+					users = (node.username and node.password) and {
+						{
+							user = node.username,
+							pass = node.password
+						}
+					} or nil
+				}
+			} or nil,
+			address = (node.protocol == "wireguard" and node.wireguard_local_address) and node.wireguard_local_address or nil,
+			secretKey = (node.protocol == "wireguard") and node.wireguard_secret_key or nil,
+			peers = (node.protocol == "wireguard") and {
+				{
+					publicKey = node.wireguard_public_key,
+					endpoint = node.address .. ":" .. node.port,
+					preSharedKey = node.wireguard_preSharedKey,
+					keepAlive = node.wireguard_keepAlive and tonumber(node.wireguard_keepAlive) or nil
+				}
+			} or nil,
+			mtu = (node.protocol == "wireguard" and node.wireguard_mtu) and tonumber(node.wireguard_mtu) or nil,
+			reserved = (node.protocol == "wireguard" and node.wireguard_reserved) and node.wireguard_reserved or nil
+		}
+	}
+	local alpn = {}
+	if node.alpn and node.alpn ~= "default" then
+		string.gsub(node.alpn, '[^' .. "," .. ']+', function(w)
+			table.insert(alpn, w)
+		end)
+	end
+	if alpn and #alpn > 0 then
+		if result.streamSettings.tlsSettings then
+			result.streamSettings.tlsSettings.alpn = alpn
+		end
+	end
+
+	-- 處理自定義的配置，以適配最新版本，新參數會放在 node.custom_outbound_stream_settings, node.custom_mux, node.custom_settings 中，並且是用base64的編碼保存的json字符
+	result.streamSettings = base64_deep_merge(result.streamSettings or {}, node.custom_outbound_stream_settings)
+	-- sys.call('logger "' .. jsonc.stringify(result.streamSettings):gsub('"', '\\"') .. '"')
+	result.mux = base64_deep_merge(result.mux or {}, node.custom_mux)
+	-- TODO:settings是數組要額外處理
+	-- result.settings = base64_deep_merge(result.settings, node.custom_settings)
+
 	return result
 end
 
