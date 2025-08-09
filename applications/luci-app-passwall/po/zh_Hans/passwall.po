@@ -424,6 +424,12 @@ msgstr "负载均衡节点列表"
 msgid "Load balancing node list, <a target='_blank' href='https://toutyrater.github.io/routing/balance2.html'>document</a>"
 msgstr "负载均衡节点列表，<a target='_blank' href='https://toutyrater.github.io/routing/balance2.html'>文档原理</a>"
 
+msgid "Load balancing fallback node"
+msgstr "负载均衡fallback节点"
+
+msgid "Load balancing fallback node, <a target='_blank' href='https://toutyrater.github.io/routing/balance2.html'>document</a>"
+msgstr "负载均衡fallback节点，<a target='_blank' href='https://toutyrater.github.io/routing/balance2.html'>文档原理</a>"
+
 msgid "From Share URL"
 msgstr "导入分享URL"
 

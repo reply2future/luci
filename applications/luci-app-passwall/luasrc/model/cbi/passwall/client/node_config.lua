@@ -167,6 +167,11 @@ end
 local balancing_node = s:option(DynamicList, "balancing_node", translate("Load balancing node list"), translate("Load balancing node list, <a target='_blank' href='https://toutyrater.github.io/routing/balance2.html'>document</a>"))
 for k, v in pairs(nodes_table) do balancing_node:value(v.id, v.remarks) end
 balancing_node:depends("protocol", "_balancing")
+-- fallback node
+local balancing_fallback_node = s:option(ListValue, "balancing_fallback_node", translate("Load balancing fallback node"), translate("Load balancing fallback node, <a target='_blank' href='https://toutyrater.github.io/routing/balance2.html'>document</a>"))
+for k, v in pairs(nodes_table) do balancing_fallback_node:value(v.id, v.remarks) end
+balancing_fallback_node:depends("protocol", "_balancing")
+balancing_fallback_node.rmempty = true
 
 local balancingStrategy = s:option(ListValue, "balancingStrategy", translate("Balancing Strategy"))
 balancingStrategy:depends("protocol", "_balancing")

@@ -638,6 +638,10 @@ function gen_config(var)
 			return "balancer-" .. _node_id
 		end
 
+		local function get_balancer_fallback_tag(_node_id)
+			return "fallback-" .. _node_id
+		end
+
 		local function gen_balancer(_node, loopbackTag)
 			local blc_nodes = _node.balancing_node
 			local length = #blc_nodes
@@ -663,12 +667,22 @@ function gen_config(var)
 				end
 			end
 
+			local balancing_fallback_node = _node.balancing_fallback_node
+			if balancing_fallback_node then
+				local blc_fallback_node = uci:get_all(appname, balancing_fallback_node)
+				local outbound = gen_outbound(flag, blc_fallback_node, get_balancer_fallback_tag(balancing_fallback_node))
+				if outbound then
+					table.insert(outbounds, outbound)
+				end
+			end
+
 			local balancer, rule
 			if #valid_nodes > 0 then
 				local balancerTag = get_balancer_tag(_node[".name"])
 				balancer = {
 					tag = balancerTag,
 					selector = valid_nodes,
+					fallbackTag = get_balancer_fallback_tag(balancing_fallback_node),
 					strategy = { type = _node.balancingStrategy or "random" }
 				}
 				if _node.balancingStrategy == "leastPing" or _node.balancingStrategy == "leastLoad" then
