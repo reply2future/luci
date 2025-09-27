@@ -1124,7 +1124,9 @@ tuic_tls_alpn:depends({ type = "TUIC"})
 tuic_tls_alpn.rmempty = true
 
 -- 自定義的配置，以適配最新版本
-custom_outbound_settings = s:option(Value, "custom_outbound_settings", translate("Custom Outbound Settings(JSON)"))
+custom_outbound_settings = s:option(TextValue, "custom_outbound_settings", translate("Custom Outbound Settings(JSON)"))
+custom_outbound_settings.rows = 15
+custom_outbound_settings.wrap = "off"
 custom_outbound_settings.default = ""
 custom_outbound_settings.rmempty = true
 custom_outbound_settings.cfgvalue = function(self, section)
@@ -1150,7 +1152,9 @@ custom_outbound_settings.write = function(self, section, value)
     Value.write(self, section, value)
 end
 
-custom_outbound_mux = s:option(Value, "custom_outbound_mux", translate("Custom Outbound MUX(JSON)"))
+custom_outbound_mux = s:option(TextValue, "custom_outbound_mux", translate("Custom Outbound MUX(JSON)"))
+custom_outbound_mux.rows = 15
+custom_outbound_mux.wrap = "off"
 custom_outbound_mux.default = ""
 custom_outbound_mux.rmempty = true
 custom_outbound_mux.cfgvalue = function(self, section)
@@ -1177,7 +1181,9 @@ custom_outbound_mux:depends({ type = "Xray", protocol = "socks" })
 custom_outbound_mux:depends({ type = "Xray", protocol = "shadowsocks" })
 custom_outbound_mux:depends({ type = "Xray", protocol = "trojan" })
 
-custom_outbound_stream_settings = s:option(Value, "custom_outbound_stream_settings", translate("Custom Outbound Stream Settings(JSON)"))
+custom_outbound_stream_settings = s:option(TextValue, "custom_outbound_stream_settings", translate("Custom Outbound Stream Settings(JSON)"))
+custom_outbound_stream_settings.rows = 15
+custom_outbound_stream_settings.wrap = "off"
 custom_outbound_stream_settings.default = ""
 custom_outbound_stream_settings.rmempty = true
 custom_outbound_stream_settings.cfgvalue = function(self, section)
