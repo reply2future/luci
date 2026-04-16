@@ -215,7 +215,7 @@ uci:foreach(appname, "shunt_rules", function(e)
 	if e[".name"] and e.remarks then
 		o = s:option(Value, e[".name"], string.format('* <a href="%s" target="_blank">%s</a>', api.url("shunt_rules", e[".name"]), e.remarks))
 		o:value("nil", translate("Close"))
-		o:value("_default", translate("Default"))
+		o:value("_default", translate("Default Proxy"))
 		o:value("_direct", translate("Direct Connection"))
 		o:value("_blackhole", translate("Blackhole"))
 		o:depends("protocol", "_shunt")
@@ -246,7 +246,7 @@ shunt_tips.cfgvalue = function(t, n)
 end
 shunt_tips:depends("protocol", "_shunt")
 
-local default_node = s:option(Value, "default_node", string.format('* <a style="color:red">%s</a>', translate("Default")))
+local default_node = s:option(Value, "default_node", string.format('* <a style="color:red">%s</a>', translate("Default Proxy")))
 default_node:depends("protocol", "_shunt")
 default_node:value("_direct", translate("Direct Connection"))
 default_node:value("_blackhole", translate("Blackhole"))
@@ -267,6 +267,12 @@ if #nodes_table > 0 then
 		dpt:depends({ preproxy_enabled = "1", default_node = v.id })
 	end
 end
+
+local default_routing_node_id = s:option(Value, "default_routing_node_id", string.format('* <a style="color:red">%s</a>', translate("Default Routing")))
+default_routing_node_id:depends("protocol", "_shunt")
+default_routing_node_id:value("_direct", translate("Direct Connection"))
+default_routing_node_id:value("_blackhole", translate("Blackhole"))
+default_routing_node_id:value("_default", translate("Default Proxy"))
 
 domainStrategy = s:option(ListValue, "domainStrategy", translate("Domain Strategy"))
 domainStrategy:value("AsIs")

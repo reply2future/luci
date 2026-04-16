@@ -174,7 +174,7 @@ if (has_v2ray or has_xray) and #nodes_table > 0 then
 					o.write = get_write(v.id, id)
 					o:depends("tcp_node", v.id)
 					o:value("nil", translate("Close"))
-					o:value("_default", translate("Default"))
+					o:value("_default", translate("Default Proxy"))
 					o:value("_direct", translate("Direct Connection"))
 					o:value("_blackhole", translate("Blackhole"))
 
@@ -198,7 +198,7 @@ if (has_v2ray or has_xray) and #nodes_table > 0 then
 			end)
 
 			local id = "default_node"
-			o = s:taboption("Main", Value, vid .. "-" .. id, string.format('* <a style="color:red">%s</a>', translate("Default")))
+			o = s:taboption("Main", Value, vid .. "-" .. id, string.format('* <a style="color:red">%s</a>', translate("Default Proxy")))
 			o.cfgvalue = get_cfgvalue(v.id, id)
 			o.write = get_write(v.id, id)
 			o:depends("tcp_node", v.id)
@@ -213,6 +213,15 @@ if (has_v2ray or has_xray) and #nodes_table > 0 then
 			for k1, v1 in pairs(normal_list) do
 				o:value(v1.id, v1.remark)
 			end
+
+			local id = "default_routing_node_id"
+			o = s:taboption("Main", Value, vid .. "-" .. id, string.format('* <a style="color:red">%s</a>', translate("Default Routing")))
+			o.cfgvalue = get_cfgvalue(v.id, id)
+			o.write = get_write(v.id, id)
+			o:depends("tcp_node", v.id)
+			o:value("_direct", translate("Direct Connection"))
+			o:value("_blackhole", translate("Blackhole"))	
+			o:value("_default", translate("Default Proxy"))	
 
 			local id = "default_proxy_tag"
 			o = s:taboption("Main", ListValue, vid .. "-" .. id, string.format('* <a style="color:red">%s</a>', translate("Default Preproxy")), translate("When using, localhost will connect this node first and then use this node to connect the default node."))

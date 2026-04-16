@@ -622,6 +622,12 @@ msgstr "仅网页"
 msgid "Default"
 msgstr "默认"
 
+msgid "Default Proxy"
+msgstr "默认代理"
+
+msgid "Default Routing"
+msgstr "默认路由"
+
 msgid "Close"
 msgstr "关闭"
 

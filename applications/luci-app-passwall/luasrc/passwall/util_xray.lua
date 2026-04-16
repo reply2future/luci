@@ -888,9 +888,23 @@ function gen_config(var)
 				end
 				return rule_outboundTag, rule_balancerTag
 			end
+
+			local function get_default_routing_tag(node_id)
+				if node_id == "_direct" then
+					return "direct"
+				elseif node_id == "_blackhole" then
+					return "blackhole"
+				elseif node_id == "_default" then
+					return "default"
+				else
+					return nil
+				end
+			end
+
 			--default_node
 			local default_node_id = node.default_node or "_direct"
 			local default_outboundTag, default_balancerTag = gen_shunt_node("default", default_node_id)
+			local default_routingTag = get_default_routing_tag(node.default_routing_node_id)
 			--shunt rule
 			uci:foreach(appname, "shunt_rules", function(e)
 				local outboundTag, balancerTag = gen_shunt_node(e[".name"])
@@ -943,11 +957,16 @@ function gen_config(var)
 				end
 			end)
 
-			if default_outboundTag or default_balancerTag then
+			if default_balancerTag and default_routingTag == "default" then
 				table.insert(rules, {
 					type = "field",
-					outboundTag = default_outboundTag,
 					balancerTag = default_balancerTag,
+					network = "tcp,udp"
+				})
+			elseif default_routingTag then
+				table.insert(rules, {
+					type = "field",
+					outboundTag = default_routingTag,
 					network = "tcp,udp"
 				})
 			end
